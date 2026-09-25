@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Doctor Appointment BD
 
-## Getting Started
+A doctor discovery and appointment booking platform for Bangladesh — browse specialists by division, hospital and specialty, then book a specific time slot.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Doctor directory** with specialty, hospital, years of experience, education, certifications, treated symptoms, procedures performed, and consultation fee in BDT.
+- **Online and in-person** consultation flags per doctor.
+- **Slot-based booking.** Each doctor has available dates, and each date has discrete time slots — a slot holds at most one confirmed appointment.
+- **Patient accounts** with credentials auth, plus appointment history and cancellation.
+- **Ratings and reviews** per doctor, supporting both registered and guest authors.
+- **Geographic model** covering all eight Bangladesh divisions and their major hospitals.
+
+## Data model
+
+```
+Division ──< Hospital ──< Doctor >── Specialty
+                            │
+                            ├──< AvailableDate ──< TimeSlot ──< Appointment >── User
+                            └──< Review >── User
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`AvailableDate` is unique per `(doctor, date)` and `TimeSlot` unique per `(date, time)`, so the schema itself prevents duplicate slots being generated.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tech stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js (App Router) · TypeScript · Prisma · SQLite · NextAuth · Tailwind CSS · bcrypt
 
-## Learn More
+Booking, registration, login, and cancellation are all server actions — there is no client-side API surface for mutations beyond the NextAuth route.
 
-To learn more about Next.js, take a look at the following resources:
+## Running locally
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm install
+cp .env.example .env        # set DATABASE_URL and AUTH_SECRET
+npx prisma migrate dev
+npx tsx prisma/seed.ts      # divisions, hospitals, specialties, doctors, dates and slots
+npm run dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open http://localhost:3000.
 
-## Deploy on Vercel
+## Known limitations
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **The double-booking check is not atomic.** `bookAppointmentAction` reads the slot's confirmed appointments and then creates one in a separate query. Two concurrent requests for the same slot can both pass the check. The fix is a unique partial index on `(timeSlotId)` for confirmed appointments, or wrapping the check and insert in a transaction — currently the race window is open.
+2. **SQLite** is fine for development and this prototype, but the app would need Postgres to run for real.
+3. **Doctor and hospital data is seeded**, not administered — there is no admin interface for adding or editing practitioners.
+4. **Cancelled slots are not released** back into availability in an explicit workflow; cancellation sets appointment status only.
+5. **No payment integration** — booking records an appointment and the consultation fee is informational.

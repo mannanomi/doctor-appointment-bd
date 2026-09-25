@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String
+  email        String        @unique
+  phone        String?
+  passwordHash String
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  appointments Appointment[]
+  reviews      Review[]
+}
+
+model Division {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  hospitals Hospital[]
+}
+
+model Hospital {
+  id         String   @id @default(cuid())
+  name       String
+  address    String
+  city       String
+  divisionId String
+  division   Division @relation(fields: [divisionId], references: [id])
+  doctors    Doctor[]
+}
+
+model Specialty {
+  id      String   @id @default(cuid())
+  name    String   @unique
+  doctors Doctor[]
+}
+
+model Doctor {
+  id              String          @id @default(cuid())
+  name            String
+  photoUrl        String?
+  experienceYears Int
+  education       String
+  certificate     String
+  symptoms        String
+  procedures      String
+  feeBdt          Int
+  online          Boolean         @default(true)
+  offline         Boolean         @default(true)
+  scheduleText    String
+  specialtyId     String
+  specialty       Specialty       @relation(fields: [specialtyId], references: [id])
+  hospitalId      String
+  hospital        Hospital        @relation(fields: [hospitalId], references: [id])
+  availableDates  AvailableDate[]
+  reviews         Review[]
+  appointments    Appointment[]
+}
+
+model AvailableDate {
+  id       String     @id @default(cuid())
+  date     DateTime
+  doctorId String
+  doctor   Doctor     @relation(fields: [doctorId], references: [id])
+  slots    TimeSlot[]
+
+  @@unique([doctorId, date])
+}
+
+model TimeSlot {
+  id              String        @id @default(cuid())
+  time            String
+  availableDateId String
+  availableDate   AvailableDate @relation(fields: [availableDateId], references: [id])
+  appointments    Appointment[]
+
+  @@unique([availableDateId, time])
+}
+
+model Appointment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  doctorId   String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  timeSlotId String
+  timeSlot   TimeSlot @relation(fields: [timeSlotId], references: [id])
+  status     String   @default("confirmed")
+  createdAt  DateTime @default(now())
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  rating     Int
+  comment    String
+  createdAt  DateTime @default(now())
+  doctorId   String
+  doctor     Doctor   @relation(fields: [doctorId], references: [id])
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  authorName String
+}
